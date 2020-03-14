@@ -11,6 +11,7 @@ pub fn build(b: *Builder) void {
     tests_step.dependOn(&tests.step);
 
     var exe = b.addExecutable("lint", "src/main.zig");
+    exe.addPackagePath("arg-parser", "../zig-args/args.zig");
     exe.setBuildMode(mode);
     exe.install();
     exe.linkLibC();
