@@ -1,21 +1,26 @@
 const std = @import("std");
 const zig = std.zig;
 const Node = zig.ast.Node;
+const Tree = zig.ast.Tree;
+const Linter = @import("linter.zig").Linter;
 
 pub const ApplyError = error{
 // foo
 } || std.mem.Allocator.Error;
 
 /// Function to apply rule.
-pub const ApplyFn = fn (*Node) ApplyError!void;
+pub const ApplyFn = fn (*Linter, *Tree, *Node) ApplyError!void;
 
 /// Rule with a set of node id's to apply it to.
 pub const Rule = struct {
     apply_for: []const Node.Id,
     apply: ApplyFn,
+    name: []const u8,
 };
 
-fn makeRule(rule: var) Rule {
+fn makeRule(name: []const u8) Rule {
+    const rule = @import("rules/" ++ name ++ ".zig");
+
     if (!@hasDecl(rule, "apply")) @compileError("rule has no `apply` function");
     if (@TypeOf(rule.apply) != ApplyFn) @compileError("invalid apply function");
 
@@ -26,9 +31,10 @@ fn makeRule(rule: var) Rule {
     return .{
         .apply_for = rule.apply_for[0..],
         .apply = rule.apply,
+        .name = name,
     };
 }
 
 pub const rules = [_]Rule{
-    makeRule(@import("rules/declaration_names.zig")),
+    makeRule("declaration_names"),
 };
