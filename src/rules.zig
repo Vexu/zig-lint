@@ -2,14 +2,14 @@ const std = @import("std");
 const zig = std.zig;
 const Node = zig.ast.Node;
 const Tree = zig.ast.Tree;
-const Linter = @import("linter.zig").Linter;
+const linter = @import("linter.zig");
+const Linter = linter.Linter;
+const Message = linter.Message;
 
-pub const ApplyError = error{
-// foo
-} || std.mem.Allocator.Error;
+pub const ApplyError = error{} || std.mem.Allocator.Error;
 
 /// Function to apply rule.
-pub const ApplyFn = fn (*Linter, *Tree, *Node) ApplyError!void;
+pub const ApplyFn = fn (*Linter, *Tree, *Node) ApplyError!?Message;
 
 /// Rule with a set of node id's to apply it to.
 pub const Rule = struct {
@@ -35,7 +35,7 @@ fn makeRule(comptime name: []const u8) Rule {
     };
 }
 
-pub const rules = [_]Rule{
+const rules = [_]Rule{
     makeRule("declaration_names"),
 };
 

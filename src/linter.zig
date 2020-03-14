@@ -8,6 +8,11 @@ const Tree = zig.ast.Tree;
 const Options = @import("main.zig").Options;
 const rules = @import("rules.zig");
 
+pub const Message = struct {
+    msg: []const u8,
+    token: zig.ast.TokenIndex,
+};
+
 pub const Linter = struct {
     allocator: *Allocator,
     seen: PathMap,
@@ -80,7 +85,9 @@ pub const Linter = struct {
         const node_rules = rules.byId(node.id);
 
         for (node_rules) |rule| {
-            try rule.apply(self, tree, node);
+            if (try rule.apply(self, tree, node)) |some| {
+                try stream.print("{}\n", .{some.msg});
+            }
         }
 
         var i: usize = 0;

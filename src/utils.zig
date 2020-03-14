@@ -86,3 +86,50 @@ pub fn isType(tree: *Tree, node: *Node) bool {
         else => return false,
     }
 }
+
+pub fn isSnakeCase(name: []const u8) bool {
+    std.debug.assert(name.len != 0);
+    var i: usize = 0;
+    while (i < name.len) : (i += 1) {
+        switch (name[i]) {
+            'a'...'z', '0'...'9' => {},
+            '_' => {
+                if (i == 0 or i == name.len - 1) return false;
+            },
+            else => return false,
+        }
+    }
+    return true;
+}
+
+pub fn isCamelCase(name: []const u8) bool {
+    std.debug.assert(name.len != 0);
+    switch (name[0]) {
+        'a'...'z' => {},
+        else => return false,
+    }
+    var i: usize = 0;
+    while (i < name.len) : (i += 1) {
+        switch (name[i]) {
+            'a'...'z', '0'...'9', 'A'...'Z' => {},
+            else => return false,
+        }
+    }
+    return true;
+}
+
+pub fn isTitleCase(name: []const u8) bool {
+    std.debug.assert(name.len != 0);
+    switch (name[0]) {
+        'A'...'Z' => {},
+        else => return false,
+    }
+    var i: usize = 0;
+    while (i < name.len) : (i += 1) {
+        switch (name[i]) {
+            'a'...'z', '0'...'9', 'A'...'Z' => {},
+            else => return false,
+        }
+    }
+    return true;
+}
