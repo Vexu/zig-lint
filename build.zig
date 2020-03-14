@@ -8,7 +8,7 @@ pub fn build(b: *Builder) void {
 
     var tests = b.addTest("src/main.zig");
     tests.setBuildMode(mode);
-    tests.dependOn(&test_step.step);
+    tests_step.dependOn(&tests.step);
 
     var exe = b.addExecutable("lint", "src/main.zig");
     exe.setBuildMode(mode);
