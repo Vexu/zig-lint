@@ -23,15 +23,9 @@ pub fn apply(linter: *Linter, tree: *Tree, node: *Node) rules.ApplyError!?Messag
         const name = tree.tokenSlice(var_decl.name_token);
 
         if (is_type and !utils.isTitleCase(name)) {
-            return Message{
-                .msg = type_name,
-                .token = var_decl.name_token,
-            };
+            return Message.fromToken(type_name, var_decl.name_token);
         } else if (!utils.isSnakeCase(name)) {
-            return Message{
-                .msg = var_name,
-                .token = var_decl.name_token,
-            };
+            return Message.fromToken(var_name, var_decl.name_token);
         } else {
             return null;
         }
@@ -41,19 +35,16 @@ pub fn apply(linter: *Linter, tree: *Tree, node: *Node) rules.ApplyError!?Messag
             .Explicit => |ret_node| ret_node,
             .InferErrorSet => |ret_node| ret_node,
         };
-        const is_type = utils.isType(tree, return_type);
+        const is_type = if (return_type.cast(Node.Identifier)) |some|
+            std.mem.eql(u8, "type", tree.tokenSlice(some.token))
+        else
+            false;
         const name = tree.tokenSlice(name_tok);
 
         if (is_type and !utils.isTitleCase(name)) {
-            return Message{
-                .msg = type_name,
-                .token = name_tok,
-            };
+            return Message.fromToken(type_name, name_tok);
         } else if (!utils.isCamelCase(name)) {
-            return Message{
-                .msg = func_name,
-                .token = name_tok,
-            };
+            return Message.fromToken(func_name, name_tok);
         } else {
             return null;
         }

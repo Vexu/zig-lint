@@ -5,12 +5,53 @@ const mem = std.mem;
 const Allocator = mem.Allocator;
 const Node = zig.ast.Node;
 const Tree = zig.ast.Tree;
+const TokenIndex = zig.ast.TokenIndex;
 const Options = @import("main.zig").Options;
 const rules = @import("rules.zig");
 
 pub const Message = struct {
     msg: []const u8,
-    token: zig.ast.TokenIndex,
+    span: struct {
+        begin: TokenIndex,
+        end: TokenIndex,
+    },
+
+    pub fn fromToken(msg: []const u8, tok: TokenIndex) Message {
+        return .{
+            .msg = msg,
+            .span = .{
+                .begin = tok,
+                .end = tok,
+            },
+        };
+    }
+
+    fn print(self: Message, path: []const u8, tree: *Tree, stream: var) !void {
+        const RED = "\x1b[31;1m";
+        const BOLD = "\x1b[0;1m";
+        const RESET = "\x1b[0m";
+
+        const first_token = tree.tokens.at(self.span.begin);
+        const last_token = tree.tokens.at(self.span.end);
+        const loc = tree.tokenLocationPtr(0, first_token);
+
+        const prefix = if (!std.fs.path.isAbsolute(path)) "./" else "";
+        try stream.print(
+            BOLD ++ "{}{}:{}:{}: " ++ RED ++ "error: " ++ BOLD ++ "{}" ++ RESET ++ "\n{}\n",
+            .{
+                prefix,
+                path,
+                loc.line + 1,
+                loc.column + 1,
+                self.msg,
+                tree.source[loc.line_start..loc.line_end],
+            },
+        );
+        try stream.writeByteNTimes(' ', loc.column);
+        try stream.writeAll(RED);
+        try stream.writeByteNTimes('~', last_token.end - first_token.start);
+        try stream.writeAll(RESET ++ "\n");
+    }
 };
 
 pub const Linter = struct {
@@ -78,21 +119,22 @@ pub const Linter = struct {
             @panic("TODO print errors");
         }
 
-        try self.lintNode(tree, &tree.root_node.base, stream);
+        try self.lintNode(path, tree, &tree.root_node.base, stream);
     }
 
-    fn lintNode(self: *Linter, tree: *Tree, node: *Node, stream: var) LintError!void {
+    fn lintNode(self: *Linter, path: []const u8, tree: *Tree, node: *Node, stream: var) LintError!void {
         const node_rules = rules.byId(node.id);
 
         for (node_rules) |rule| {
             if (try rule.apply(self, tree, node)) |some| {
-                try stream.print("{}\n", .{some.msg});
+                self.errors = true;
+                try some.print(path, tree, stream);
             }
         }
 
         var i: usize = 0;
         while (node.iterate(i)) |child| : (i += 1) {
-            try self.lintNode(tree, child, stream);
+            try self.lintNode(path, tree, child, stream);
         }
     }
 };
