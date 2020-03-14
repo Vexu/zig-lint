@@ -25,8 +25,9 @@ pub fn apply(linter: *Linter, tree: *Tree, node: *Node) rules.ApplyError!?Messag
         if (is_type) {
             if (!utils.isTitleCase(name))
                 return Message.fromToken(type_name, var_decl.name_token);
-        } else if (!utils.isSnakeCase(name)) {
-            return Message.fromToken(var_name, var_decl.name_token);
+        } else {
+            if (name[0] != '@' and !utils.isSnakeCase(name))
+                return Message.fromToken(var_name, var_decl.name_token);
         }
     } else if (node.cast(Node.FnProto)) |fn_decl| {
         const name_tok = fn_decl.name_token orelse return null;
@@ -43,8 +44,9 @@ pub fn apply(linter: *Linter, tree: *Tree, node: *Node) rules.ApplyError!?Messag
         if (is_type) {
             if (!utils.isTitleCase(name))
                 return Message.fromToken(type_name, name_tok);
-        } else if (!utils.isCamelCase(name)) {
-            return Message.fromToken(func_name, name_tok);
+        } else {
+            if (name[0] != '@' and !utils.isCamelCase(name))
+                return Message.fromToken(func_name, name_tok);
         }
     }
     return null;

@@ -37,6 +37,7 @@ fn makeRule(comptime name: []const u8) Rule {
 
 const rules = [_]Rule{
     makeRule("declaration_names"),
+    makeRule("non_canonic_name"),
 };
 
 pub fn byId(id: Node.Id) []const Rule {
