@@ -8,11 +8,12 @@ const eql = mem.eql;
 pub fn isType(tree: *Tree, node: *Node) bool {
     switch (node.id) {
         .ErrorType, .AnyFrameType, .ErrorSetDecl, .VarType => return true,
-        .ContainerDecl => |cont| {
+        .ContainerDecl => {
             // TODO check for namespace
             return true;
         },
-        .BuiltinCall => |builtin| {
+        .BuiltinCall => {
+            const builtin = @fieldParentPtr(Node.BuiltinCall, "base", node);
             const name = tree.tokenSlice(builtin.builtin_token);
             return eql(u8, name, "@TypeOf") or
                 eql(u8, name, "@Vector") or
@@ -22,23 +23,32 @@ pub fn isType(tree: *Tree, node: *Node) bool {
                 eql(u8, name, "@This") or
                 eql(u8, name, "@Type");
         },
-        .InfixOp => |infix| {
+        .InfixOp => {
+            const infix = @fieldParentPtr(Node.InfixOp, "base", node);
             return infix.op == .ErrorUnion or
                 infix.op == .MergeErrorSets;
         },
-        .PrefixOp => |prefix| switch (prefix.op) {
-            .ArrayType,
-            .OptionalType,
-            .PtrType,
-            .SliceType,
-            => return true,
-            else => return false,
+        .PrefixOp => {
+            const prefix = @fieldParentPtr(Node.PrefixOp, "base", node);
+            switch (prefix.op) {
+                .ArrayType,
+                .OptionalType,
+                .PtrType,
+                .SliceType,
+                => return true,
+                else => return false,
+            }
         },
-        .FnProto => |proto| {
+        .FnProto => {
+            const proto = @fieldParentPtr(Node.FnProto, "base", node);
             return proto.body_node == null;
         },
-        .GroupedExpression => |group| return isType(group.expr, source),
-        .Identifier => |ident| {
+        .GroupedExpression => {
+            const group = @fieldParentPtr(Node.GroupedExpression, "base", node);
+            return isType(tree, group.expr);
+        },
+        .Identifier => {
+            const ident = @fieldParentPtr(Node.Identifier, "base", node);
             const name = tree.tokenSlice(ident.token);
 
             if (name.len > 1 and (name[0] == 'u' or name[0] == 'i')) {

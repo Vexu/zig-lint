@@ -18,7 +18,7 @@ pub const Rule = struct {
     name: []const u8,
 };
 
-fn makeRule(name: []const u8) Rule {
+fn makeRule(comptime name: []const u8) Rule {
     const rule = @import("rules/" ++ name ++ ".zig");
 
     if (!@hasDecl(rule, "apply")) @compileError("rule has no `apply` function");
@@ -38,3 +38,25 @@ fn makeRule(name: []const u8) Rule {
 pub const rules = [_]Rule{
     makeRule("declaration_names"),
 };
+
+pub fn byId(id: Node.Id) []const Rule {
+    inline for (std.meta.fields(Node.Id)) |field| {
+        if (@field(Node.Id, field.name) == id) {
+            return comptime ruleArr(@field(Node.Id, field.name));
+        }
+    }
+    unreachable;
+}
+
+fn ruleArr(comptime id: Node.Id) []const Rule {
+    var rule_arr: []const Rule = &[_]Rule{};
+    rules: for (rules) |rule| {
+        for (rule.apply_for) |rule_id| {
+            if (rule_id == id) {
+                rule_arr = rule_arr ++ &[_]Rule{rule};
+                continue :rules;
+            }
+        }
+    }
+    return rule_arr;
+}

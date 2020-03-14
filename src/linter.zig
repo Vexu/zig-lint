@@ -6,6 +6,7 @@ const Allocator = mem.Allocator;
 const Node = zig.ast.Node;
 const Tree = zig.ast.Tree;
 const Options = @import("main.zig").Options;
+const rules = @import("rules.zig");
 
 pub const Linter = struct {
     allocator: *Allocator,
@@ -27,10 +28,12 @@ pub const Linter = struct {
         self.seen.deinit();
     }
 
-    pub fn lintPath(self: *Linter, path: []const u8, stream: var) !void {
+    pub const LintError = error{} || rules.ApplyError || std.os.WriteError || std.fs.Dir.OpenError;
+
+    pub fn lintPath(self: *Linter, path: []const u8, stream: var) LintError!void {
         // TODO make this async when https://github.com/ziglang/zig/issues/3777 is fixed
         if (self.seen.contains(path)) return;
-        try self.seen.put(path);
+        try self.seen.putNoClobber(path, {});
 
         const source_code = std.io.readFileAlloc(self.allocator, path) catch |err| switch (err) {
             error.IsDir, error.AccessDenied => {
@@ -44,7 +47,7 @@ pub const Linter = struct {
                             self.allocator,
                             &[_][]const u8{ path, entry.name },
                         );
-                        try self.lintPath(full_path);
+                        try self.lintPath(full_path, stream);
                     }
                 }
                 return;
@@ -58,7 +61,7 @@ pub const Linter = struct {
         defer self.allocator.free(source_code);
 
         const tree = zig.parse(self.allocator, source_code) catch |err| {
-            try stderr.print("error parsing file '{}': {}\n", .{ path, err });
+            try stream.print("error parsing file '{}': {}\n", .{ path, err });
             self.errors = true;
             return;
         };
@@ -73,5 +76,16 @@ pub const Linter = struct {
         try self.lintNode(tree, &tree.root_node.base, stream);
     }
 
-    fn lintNode(self: *Linter, tree: *Tree, node: *Node, stream: var) !void {}
+    fn lintNode(self: *Linter, tree: *Tree, node: *Node, stream: var) LintError!void {
+        const node_rules = rules.byId(node.id);
+
+        for (node_rules) |rule| {
+            try rule.apply(self, tree, node);
+        }
+
+        var i: usize = 0;
+        while (node.iterate(i)) |child| : (i += 1) {
+            try self.lintNode(tree, child, stream);
+        }
+    }
 };
