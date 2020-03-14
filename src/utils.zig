@@ -5,7 +5,8 @@ const Tree = zig.ast.Tree;
 const mem = std.mem;
 const eql = mem.eql;
 
-pub fn isType(tree: *Tree, node: *Node) bool {
+/// null if cannot be determined
+pub fn isType(tree: *Tree, node: *Node) ?bool {
     switch (node.id) {
         .ErrorType, .AnyFrameType, .ErrorSetDecl, .VarType => return true,
         .ContainerDecl => {
@@ -15,16 +16,19 @@ pub fn isType(tree: *Tree, node: *Node) bool {
         .BuiltinCall => {
             const builtin = @fieldParentPtr(Node.BuiltinCall, "base", node);
             const name = tree.tokenSlice(builtin.builtin_token);
+            if (eql(u8, name, "@import")) return null;
             return eql(u8, name, "@TypeOf") or
                 eql(u8, name, "@Vector") or
                 eql(u8, name, "@Frame") or
                 eql(u8, name, "@OpaqueType") or
                 eql(u8, name, "@TagType") or
                 eql(u8, name, "@This") or
-                eql(u8, name, "@Type");
+                eql(u8, name, "@Type") or
+                eql(u8, name, "@typeInfo");
         },
         .InfixOp => {
             const infix = @fieldParentPtr(Node.InfixOp, "base", node);
+            if (infix.op == .Period) return null;
             return infix.op == .ErrorUnion or
                 infix.op == .MergeErrorSets;
         },
@@ -38,6 +42,11 @@ pub fn isType(tree: *Tree, node: *Node) bool {
                 => return true,
                 else => return false,
             }
+        },
+        .SuffixOp => {
+            const suffix = @fieldParentPtr(Node.SuffixOp, "base", node);
+            if (suffix.op == .Call) return null;
+            return false;
         },
         .FnProto => {
             const proto = @fieldParentPtr(Node.FnProto, "base", node);
@@ -60,7 +69,7 @@ pub fn isType(tree: *Tree, node: *Node) bool {
                 }
                 return true;
             }
-            return eql(u8, name, "void") or
+            if (eql(u8, name, "void") or
                 eql(u8, name, "comptime_float") or
                 eql(u8, name, "comptime_int") or
                 eql(u8, name, "bool") or
@@ -81,7 +90,9 @@ pub fn isType(tree: *Tree, node: *Node) bool {
                 eql(u8, name, "c_long") or
                 eql(u8, name, "c_ulong") or
                 eql(u8, name, "c_longlong") or
-                eql(u8, name, "c_ulonglong");
+                eql(u8, name, "c_ulonglong"))
+                return true;
+            return null;
         },
         else => return false,
     }
